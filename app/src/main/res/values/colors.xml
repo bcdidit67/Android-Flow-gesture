@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 浅色模式下的窗口背景（Compose 启动前显示，避免闪黑） -->
+    <color name="theme_window_background">#FFF8FAFD</color>
+    <color name="ic_launcher_background">#FF1C2B4A</color>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Flow Gesture</string>
+    <string name="fg_service_channel_name">手势服务</string>
+    <string name="fg_service_title">Flow Gesture 手势服务</string>
+    <string name="fg_service_text">三 / 四 / 五指手势监听运行中</string>
+</resources>
