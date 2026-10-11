@@ -157,16 +157,19 @@ bool Recognizer::Classify() {
     const int32_t rawDx = (int32_t)(sumDx_ / completedFingers_);
     const int32_t rawDy = (int32_t)(sumDy_ / completedFingers_);
 
-    // 触摸面板原始坐标固定在「设备自然方向」；横屏时按当前显示旋转把位移变换到屏幕坐标系。
-    // 设备自然方向为竖屏时的对应关系：
-    //   ROTATION_0  : ( dx,  dy)
-    //   ROTATION_90 : ( dy, -dx)   （设备逆时针旋转 90°）
-    //   ROTATION_180: (-dx, -dy)
-    //   ROTATION_270: (-dy,  dx)   （设备顺时针旋转 90°）
-    int rot = (override_ >= 0 && override_ <= 3) ? override_ : (rotation_ & 3);
-    if (mirror_ && (rot == 1 || rot == 3)) {
-        // 镜像纠偏：部分 ROM / 面板的旋转方向约定相反（90° 与 270° 互换）
-        rot = (rot == 1) ? 3 : 1;
+    // 旋转档位（0/1/2/3）→ 屏幕坐标变换。
+    // 重要：面板原始坐标固定在「设备自然方向」（竖屏）。
+    //   - 竖屏（系统旋转 0 / 2）：不做补偿，直接用原始位移；
+    //   - 横屏（系统旋转 1 / 3）：按横屏档位做坐标变换；档位可由用户手动覆盖，
+    //     并支持「横屏左右反向」把 90° 与 270° 互换。
+    int rot = rotation_ & 3;
+    if (rot == 1 || rot == 3) {
+        if (override_ >= 0 && override_ <= 3) {
+            rot = override_;
+        }
+        if (mirror_ && (rot == 1 || rot == 3)) {
+            rot = (rot == 1) ? 3 : 1;
+        }
     }
     const int rotationUsed = rot;
     int32_t screenDx = rawDx;
@@ -514,7 +517,7 @@ void InputReader::PollRotation() {
     const bool mirrorFlag = (mirror != 0);
     if (mirrorFlag != mirrorEnabled_) {
         mirrorEnabled_ = mirrorFlag;
-        FG_LOGI("横屏方向镜像: %s", mirrorFlag ? "开启" : "关闭");
+        FG_LOGI("横屏左右反向: %s", mirrorFlag ? "开启" : "关闭");
         for (auto& device : devices_) {
             device.recognizer.SetRotationMirror(mirrorFlag);
         }

@@ -13,7 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.flowgesture.app.data.SettingsRepository
-import com.flowgesture.app.ui.MainScreen
+import com.flowgesture.app.ui.FlowGestureApp
 import com.flowgesture.app.ui.theme.FlowGestureTheme
 
 class MainActivity : ComponentActivity() {
@@ -32,7 +32,7 @@ class MainActivity : ComponentActivity() {
 
             FlowGestureTheme(dynamicColor = dynamicColor) {
                 Surface(color = MaterialTheme.colorScheme.background) {
-                    MainScreen()
+                    FlowGestureApp()
                 }
             }
         }

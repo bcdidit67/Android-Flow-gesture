@@ -37,8 +37,8 @@ object DaemonController {
             repository.writeConfigFile()
             RotationReporter.writeCurrent(
                 context,
-                repository.landscapeMirrorFlow.first(),
-                repository.rotationOverrideFlow.first(),
+                repository.landscapeFlipFlow.first(),
+                repository.landscapeRotationFlow.first(),
             )
 
             val libDir = context.applicationInfo.nativeLibraryDir

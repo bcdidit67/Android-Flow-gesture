@@ -1,7 +1,102 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Flow Gesture</string>
+
+    <!-- 前台服务通知 -->
     <string name="fg_service_channel_name">手势服务</string>
     <string name="fg_service_title">Flow Gesture 手势服务</string>
     <string name="fg_service_text">三 / 四 / 五指手势监听运行中</string>
+
+    <!-- 一级 Tab -->
+    <string name="tab_gestures">手势</string>
+    <string name="tab_settings">设置</string>
+
+    <!-- 手势页 / 卡片 -->
+    <string name="gesture_swipe">轻扫</string>
+    <string name="gesture_tap">点击</string>
+    <string name="gesture_advanced">高级手势</string>
+    <string name="fingers_3">三指手势</string>
+    <string name="fingers_4">四指手势</string>
+    <string name="fingers_5">五指手势</string>
+    <string name="gesture_preview_hint">手指触点示意</string>
+
+    <!-- 方向 -->
+    <string name="dir_up">向上轻扫</string>
+    <string name="dir_down">向下轻扫</string>
+    <string name="dir_left">向左轻扫</string>
+    <string name="dir_right">向右轻扫</string>
+
+    <!-- 动作选择 -->
+    <string name="action_picker_title">为「%1$s · %2$s」选择动作</string>
+    <string name="action_group_system">系统</string>
+    <string name="action_group_media">媒体</string>
+    <string name="action_group_misc">其他</string>
+    <string name="action_search_hint">搜索动作…</string>
+    <string name="action_custom_title">自定义 Shell 命令（以 Root 执行）</string>
+    <string name="action_custom_hint">例如：input keyevent 26</string>
+    <string name="action_custom_examples">示例：input keyevent 26（电源） / input keyevent 3（主屏幕） / am start -a android.intent.action.VIEW -d https://…</string>
+    <string name="action_save">保存</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_none">无</string>
+
+    <!-- 设置 -->
+    <string name="settings_service">服务</string>
+    <string name="settings_appearance">外观</string>
+    <string name="settings_orientation">方向校正</string>
+    <string name="settings_behavior">行为</string>
+    <string name="settings_diagnostics">诊断与日志</string>
+    <string name="settings_about">关于</string>
+    <string name="settings_mapping">手势映射</string>
+
+    <string name="settings_dynamic_color">动态取色</string>
+    <string name="settings_dynamic_color_desc">跟随系统壁纸（Material You）</string>
+    <string name="settings_dynamic_color_unsupported">需要 Android 12 及以上</string>
+
+    <string name="settings_landscape_rotation">横屏旋转档位</string>
+    <string name="settings_landscape_rotation_desc">仅作用于横屏；竖屏始终按 0° 处理</string>
+    <string name="settings_landscape_flip">横屏左右反向</string>
+    <string name="settings_landscape_flip_desc">横屏下左右 / 上下方向相反时开启</string>
+    <string name="settings_rotation_auto">自动</string>
+    <string name="settings_rotation_value">强制 %1$d°</string>
+    <string name="settings_rotation_state">系统旋转 %1$d · 生效档位 %2$d</string>
+
+    <string name="settings_boot_autostart">开机自启</string>
+    <string name="settings_boot_autostart_desc">仅在手动开启过服务后生效</string>
+
+    <string name="settings_reset_mapping">恢复默认映射</string>
+    <string name="settings_reset_mapping_desc">清空全部映射，仅保留「三指上滑 / 三指下滑」</string>
+    <string name="settings_reset_done">已恢复默认映射</string>
+
+    <string name="settings_log">手势日志</string>
+    <string name="settings_log_expand">展开</string>
+    <string name="settings_log_collapse">收起</string>
+    <string name="settings_log_empty">暂无日志。启动服务后，这里会显示触摸与手势记录。</string>
+    <string name="settings_log_pause">暂停</string>
+    <string name="settings_log_resume">继续</string>
+    <string name="settings_log_clear">清空</string>
+
+    <string name="settings_root_ok">Root 已授权</string>
+    <string name="settings_root_missing">未获取 Root 权限</string>
+    <string name="settings_root_checking">检测中…</string>
+    <string name="settings_service_running">运行中</string>
+    <string name="settings_service_stopped">未运行</string>
+    <string name="settings_daemon_running">守护进程正常</string>
+    <string name="settings_daemon_stopped">守护进程未运行</string>
+    <string name="settings_start_service">启动服务</string>
+    <string name="settings_stop_service">停止服务</string>
+    <string name="settings_restart_daemon">重启守护</string>
+
+    <string name="settings_version">版本 %1$s</string>
+    <string name="settings_native_core">native core %1$s</string>
+    <string name="settings_github">GitHub 开源地址</string>
+    <string name="settings_license">MIT 许可</string>
+
+    <!-- 状态条 -->
+    <string name="status_running">手势服务运行中</string>
+    <string name="status_stopped">手势服务未运行</string>
+    <string name="status_no_root">未获取 Root 权限，服务无法启动</string>
+    <string name="status_manage">管理</string>
+
+    <!-- 错误 -->
+    <string name="error_no_root">未获取 Root 权限：手势服务无法启动</string>
 </resources>

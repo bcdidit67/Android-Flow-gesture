@@ -120,8 +120,8 @@ class GestureService : Service() {
         scope.launch {
             while (isActive) {
                 try {
-                    lastMirror = repository.landscapeMirrorFlow.first()
-                    lastOverride = repository.rotationOverrideFlow.first()
+                    lastMirror = repository.landscapeFlipFlow.first()
+                    lastOverride = repository.landscapeRotationFlow.first()
                     RotationReporter.writeCurrent(applicationContext, lastMirror, lastOverride)
                 } catch (_: Throwable) {
                     // 忽略单次失败

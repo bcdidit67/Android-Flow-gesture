@@ -21,11 +21,11 @@ data class GestureSettings(
 private val Context.dataStore by preferencesDataStore(name = "gesture_settings")
 
 /**
- * 3/4/5 指手势 -> 动作 映射仓库。
+ * 手势映射与偏好设置仓库。
  *
  * 职责：
- * 1. DataStore 持久化用户配置（手势映射 + 外观设置）；
- * 2. 将手势配置生成为守护进程可读的配置文件（gesture_config.ini）。
+ * 1. DataStore 持久化用户配置（手势映射 + 外观 / 方向 / 行为偏好）；
+ * 2. 将手势映射生成为守护进程可读的 gesture_config.ini（守护进程监视变更并热重载）。
  */
 class SettingsRepository private constructor(private val context: Context) {
 
@@ -49,6 +49,56 @@ class SettingsRepository private constructor(private val context: Context) {
         prefs[DYNAMIC_COLOR_KEY] ?: true
     }
 
+    suspend fun setDynamicColor(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[DYNAMIC_COLOR_KEY] = enabled }
+    }
+
+    /**
+     * 用户是否主动开启过手势服务。
+     * 仅当为 true 时，开机自启才会拉起服务，避免安装 / 更新后自行打扰用户。
+     */
+    val serviceEnabledFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[SERVICE_ENABLED_KEY] ?: false
+    }
+
+    suspend fun setServiceEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[SERVICE_ENABLED_KEY] = enabled }
+    }
+
+    /** 开机自启（仅在用户开启过服务之后生效） */
+    val bootAutoStartFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[BOOT_AUTOSTART_KEY] ?: true
+    }
+
+    suspend fun setBootAutoStart(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[BOOT_AUTOSTART_KEY] = enabled }
+    }
+
+    /**
+     * 横屏左右反向：部分 ROM / 面板的横屏约定与另一侧相反时开启。
+     * 仅影响横屏（旋转 1 / 3），竖屏不受影响。
+     */
+    val landscapeFlipFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[LANDSCAPE_FLIP_KEY] ?: false
+    }
+
+    suspend fun setLandscapeFlip(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[LANDSCAPE_FLIP_KEY] = enabled }
+    }
+
+    /**
+     * 横屏旋转档位：-1 = 自动（跟随系统旋转），0..3 = 横屏时强制使用该档位。
+     * **只作用于横屏**，竖屏恒按 0° 处理。
+     * 旧版本键名（rotation_override）会作为回退值读取一次。
+     */
+    val landscapeRotationFlow: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[LANDSCAPE_ROTATION_KEY] ?: prefs[LEGACY_ROTATION_OVERRIDE_KEY] ?: -1
+    }
+
+    suspend fun setLandscapeRotation(value: Int) {
+        context.dataStore.edit { prefs -> prefs[LANDSCAPE_ROTATION_KEY] = value }
+    }
+
     suspend fun setAction(fingers: Int, direction: GestureDirection, action: ActionType) {
         context.dataStore.edit { prefs ->
             prefs[actionKey(keyOf(fingers, direction))] = action.id
@@ -63,55 +113,21 @@ class SettingsRepository private constructor(private val context: Context) {
         writeConfigFile()
     }
 
-    suspend fun setDynamicColor(enabled: Boolean) {
+    /** 恢复默认映射：清空所有自定义映射（默认仅保留「三指上滑 / 三指下滑」两条） */
+    suspend fun resetMappings() {
         context.dataStore.edit { prefs ->
-            prefs[DYNAMIC_COLOR_KEY] = enabled
+            for (fingers in MIN_FINGERS..MAX_FINGERS) {
+                for (direction in GestureDirection.entries) {
+                    val key = keyOf(fingers, direction)
+                    prefs.remove(actionKey(key))
+                    prefs.remove(customKey(key))
+                }
+            }
         }
+        writeConfigFile()
     }
 
-    /**
-     * 用户是否主动开启过手势服务。
-     * 仅当为 true 时，开机自启才会拉起服务，避免安装 / 更新后自行打扰用户。
-     */
-    val serviceEnabledFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
-        prefs[SERVICE_ENABLED_KEY] ?: false
-    }
-
-    suspend fun setServiceEnabled(enabled: Boolean) {
-        context.dataStore.edit { prefs ->
-            prefs[SERVICE_ENABLED_KEY] = enabled
-        }
-    }
-
-    /**
-     * 横屏方向镜像：部分 ROM / 触摸面板的旋转方向约定相反，
-     * 开启后会把横屏的坐标变换做镜像（左右/上下互换），用于快速纠偏。
-     */
-    val landscapeMirrorFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
-        prefs[LANDSCAPE_MIRROR_KEY] ?: false
-    }
-
-    suspend fun setLandscapeMirror(enabled: Boolean) {
-        context.dataStore.edit { prefs ->
-            prefs[LANDSCAPE_MIRROR_KEY] = enabled
-        }
-    }
-
-    /**
-     * 手动旋转档位覆盖：-1 = 自动（跟随系统旋转），0..3 = 强制使用该档位。
-     * 极少数机型的旋转约定不同，可用它在现场逐个尝试直至方向正确。
-     */
-    val rotationOverrideFlow: Flow<Int> = context.dataStore.data.map { prefs ->
-        prefs[ROTATION_OVERRIDE_KEY] ?: -1
-    }
-
-    suspend fun setRotationOverride(value: Int) {
-        context.dataStore.edit { prefs ->
-            prefs[ROTATION_OVERRIDE_KEY] = value
-        }
-    }
-
-    /** 将当前配置写入文件，供 Root 守护进程读取（守护进程监视文件变更并自动重载） */
+    /** 将当前映射写入文件，供 Root 守护进程读取 */
     suspend fun writeConfigFile() {
         val prefs = context.dataStore.data.first()
         val sb = StringBuilder()
@@ -151,30 +167,22 @@ class SettingsRepository private constructor(private val context: Context) {
 
         private val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
         private val SERVICE_ENABLED_KEY = booleanPreferencesKey("service_enabled")
-        private val LANDSCAPE_MIRROR_KEY = booleanPreferencesKey("landscape_mirror")
-        private val ROTATION_OVERRIDE_KEY = intPreferencesKey("rotation_override")
+        private val BOOT_AUTOSTART_KEY = booleanPreferencesKey("boot_autostart")
+        private val LANDSCAPE_FLIP_KEY = booleanPreferencesKey("landscape_mirror")
+        private val LANDSCAPE_ROTATION_KEY = intPreferencesKey("landscape_rotation")
+        private val LEGACY_ROTATION_OVERRIDE_KEY = intPreferencesKey("rotation_override")
 
         private fun keyOf(fingers: Int, direction: GestureDirection) = "g${fingers}_${direction.id}"
         private fun actionKey(key: String) = stringPreferencesKey("${key}_action")
         private fun customKey(key: String) = stringPreferencesKey("${key}_custom")
 
-        /** 默认映射（首次安装时生效，可由用户修改） */
+        /**
+         * 默认映射：**只保留两条**，其余一律为「无」。
+         * 三指上滑 = 任务视图；三指下滑 = 通知中心。
+         */
         val DEFAULT_ACTIONS: Map<String, ActionType> = mapOf(
-            "g3_tap" to ActionType.NOTIFICATIONS,
             "g3_up" to ActionType.RECENTS,
-            "g3_down" to ActionType.HOME,
-            "g3_left" to ActionType.BACK,
-            "g3_right" to ActionType.BACK,
-            "g4_tap" to ActionType.NOTIFICATIONS,
-            "g4_up" to ActionType.RECENTS,
-            "g4_down" to ActionType.HOME,
-            "g4_left" to ActionType.NONE,
-            "g4_right" to ActionType.NONE,
-            "g5_tap" to ActionType.NONE,
-            "g5_up" to ActionType.QUICK_SETTINGS,
-            "g5_down" to ActionType.HOME,
-            "g5_left" to ActionType.NONE,
-            "g5_right" to ActionType.NONE,
+            "g3_down" to ActionType.NOTIFICATIONS,
         )
     }
 }
