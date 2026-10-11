@@ -164,6 +164,10 @@ bool Recognizer::Classify() {
     //   ROTATION_180: (-dx, -dy)
     //   ROTATION_270: (-dy,  dx)   （设备顺时针旋转 90°）
     int rot = rotation_ & 3;
+    if (mirror_ && (rot == 1 || rot == 3)) {
+        // 镜像纠偏：部分 ROM / 面板的旋转方向约定相反（90° 与 270° 互换）
+        rot = (rot == 1) ? 3 : 1;
+    }
     if (rangeX_ > rangeY_) {
         // 极少数设备的面板自然方向是横屏，需要额外偏移一档
         rot = (rot + 1) & 3;
@@ -488,16 +492,30 @@ void InputReader::PollRotation() {
     }
     std::ifstream in(rotationFile_);
     int value = -1;
+    int mirror = 0;
     if (!(in >> value)) {
         return;
     }
-    if (value < 0 || value > 3 || value == currentRotation_) {
+    in >> mirror;  // 可选：第二个值表示是否做横屏镜像
+    if (value < 0 || value > 3) {
         return;
     }
-    currentRotation_ = value;
-    FG_LOGI("显示旋转更新: %d（手势方向按屏幕坐标系判定）", value);
-    for (auto& device : devices_) {
-        device.recognizer.SetRotation(value);
+
+    if (value != currentRotation_) {
+        currentRotation_ = value;
+        FG_LOGI("显示旋转更新: %d（手势方向按屏幕坐标系判定）", value);
+        for (auto& device : devices_) {
+            device.recognizer.SetRotation(value);
+        }
+    }
+
+    const bool mirrorFlag = (mirror != 0);
+    if (mirrorFlag != mirrorEnabled_) {
+        mirrorEnabled_ = mirrorFlag;
+        FG_LOGI("横屏方向镜像: %s", mirrorFlag ? "开启" : "关闭");
+        for (auto& device : devices_) {
+            device.recognizer.SetRotationMirror(mirrorFlag);
+        }
     }
 }
 
@@ -519,7 +537,8 @@ void InputReader::Loop() {
             lastScanMs_ = now;
             ScanDevices();
             for (auto& device : devices_) {
-                device.recognizer.SetRotation(currentRotation_);
+                device.recognizer.SetRotation(currentRotation_ < 0 ? 0 : currentRotation_);
+                device.recognizer.SetRotationMirror(mirrorEnabled_);
             }
             for (size_t i = 0; i < devices_.size(); ++i) {
                 Device& device = devices_[i];

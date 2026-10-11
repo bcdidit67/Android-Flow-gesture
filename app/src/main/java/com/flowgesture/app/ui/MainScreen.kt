@@ -69,6 +69,7 @@ fun MainScreen() {
 
     val settings by repository.settingsFlow.collectAsState(initial = emptyMap())
     val dynamicColor by repository.dynamicColorFlow.collectAsState(initial = true)
+    val landscapeMirror by repository.landscapeMirrorFlow.collectAsState(initial = false)
     val serviceRunning by ServiceBridge.serviceRunning.collectAsState()
     val daemonRunning by ServiceBridge.daemonRunning.collectAsState()
     val lastError by ServiceBridge.lastError.collectAsState()
@@ -134,6 +135,10 @@ fun MainScreen() {
                 supported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
                 onToggle = { enabled ->
                     scope.launch { repository.setDynamicColor(enabled) }
+                },
+                landscapeMirror = landscapeMirror,
+                onToggleLandscapeMirror = { enabled ->
+                    scope.launch { repository.setLandscapeMirror(enabled) }
                 },
             )
 
@@ -241,6 +246,8 @@ private fun AppearanceCard(
     dynamicColor: Boolean,
     supported: Boolean,
     onToggle: (Boolean) -> Unit,
+    landscapeMirror: Boolean,
+    onToggleLandscapeMirror: (Boolean) -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -268,6 +275,26 @@ private fun AppearanceCard(
                     checked = dynamicColor && supported,
                     onCheckedChange = onToggle,
                     enabled = supported,
+                )
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("横屏方向镜像", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        text = "横屏下左右 / 上下判定相反时开启（快速纠偏）",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline,
+                    )
+                }
+                Switch(
+                    checked = landscapeMirror,
+                    onCheckedChange = onToggleLandscapeMirror,
                 )
             }
         }

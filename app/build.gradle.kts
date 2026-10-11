@@ -12,8 +12,8 @@ android {
         applicationId = "com.flowgesture.app"
         minSdk = libs.versions.androidMinSdk.get().toInt()
         targetSdk = libs.versions.androidTargetSdk.get().toInt()
-        versionCode = 2
-        versionName = "0.1.1"
+        versionCode = 3
+        versionName = "0.1.2"
 
         ndk {
             // 目前打包 arm64-v8a 原生库（守护进程 + JNI 桥接）

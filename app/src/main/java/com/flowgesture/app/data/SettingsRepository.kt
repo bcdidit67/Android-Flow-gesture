@@ -82,6 +82,20 @@ class SettingsRepository private constructor(private val context: Context) {
         }
     }
 
+    /**
+     * 横屏方向镜像：部分 ROM / 触摸面板的旋转方向约定相反，
+     * 开启后会把横屏的坐标变换做镜像（左右/上下互换），用于快速纠偏。
+     */
+    val landscapeMirrorFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[LANDSCAPE_MIRROR_KEY] ?: false
+    }
+
+    suspend fun setLandscapeMirror(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[LANDSCAPE_MIRROR_KEY] = enabled
+        }
+    }
+
     /** 将当前配置写入文件，供 Root 守护进程读取（守护进程监视文件变更并自动重载） */
     suspend fun writeConfigFile() {
         val prefs = context.dataStore.data.first()
@@ -122,6 +136,7 @@ class SettingsRepository private constructor(private val context: Context) {
 
         private val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
         private val SERVICE_ENABLED_KEY = booleanPreferencesKey("service_enabled")
+        private val LANDSCAPE_MIRROR_KEY = booleanPreferencesKey("landscape_mirror")
 
         private fun keyOf(fingers: Int, direction: GestureDirection) = "g${fingers}_${direction.id}"
         private fun actionKey(key: String) = stringPreferencesKey("${key}_action")

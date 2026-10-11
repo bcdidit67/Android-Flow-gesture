@@ -41,10 +41,14 @@ object DaemonController {
             val rotationPath = File(context.filesDir, RotationReporter.ROTATION_FILE).absolutePath
 
             val commands = arrayOf(
+                // 注意顺序：必须先结束旧进程并等待其退出，再覆盖二进制文件，
+                // 否则 cp 会因为 ETXTBSY（Text file busy）失败，导致旧版本守护进程继续运行
+                "pkill -f \"$TMP_DIR/$DAEMON_NAME\" >/dev/null 2>&1 || true",
+                "sleep 0.3",
                 "mkdir -p $TMP_DIR",
+                "rm -f \"$TMP_DIR/$DAEMON_NAME\"",
                 "cp -f \"$libDir/lib$DAEMON_NAME.so\" \"$TMP_DIR/$DAEMON_NAME\"",
                 "chmod 755 \"$TMP_DIR/$DAEMON_NAME\"",
-                "pkill -f \"$TMP_DIR/$DAEMON_NAME\" >/dev/null 2>&1 || true",
                 "\"$TMP_DIR/$DAEMON_NAME\" --config=\"$configPath\" --log=\"$logPath\" --rotation=\"$rotationPath\" </dev/null >/dev/null 2>&1 &",
             )
             shell.newJob().add(*commands).exec()

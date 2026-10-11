@@ -47,6 +47,12 @@ public:
      */
     void SetRotation(int rotation) { rotation_ = rotation; }
 
+    /**
+     * 横屏方向镜像（可选纠偏）：部分 ROM / 触摸面板的旋转方向约定相反，
+     * 开启后横屏的坐标变换会做镜像（左右 / 上下互换）。
+     */
+    void SetRotationMirror(bool mirrored) { mirror_ = mirrored; }
+
     void OnSlotDown(int slot, int32_t x, int32_t y, int64_t timeMs);
     void OnSlotMove(int slot, int32_t x, int32_t y);
     void OnSlotUp(int slot, int64_t timeMs);
@@ -77,6 +83,7 @@ private:
     int32_t rangeX_ = 1080;
     int32_t rangeY_ = 2340;
     int rotation_ = 0;
+    bool mirror_ = false;
 
     bool pending_ = false;
     Gesture pendingGesture_;
@@ -132,7 +139,8 @@ private:
     bool emptyScanLogged_ = false;
     int64_t lastScanMs_ = 0;
     std::string rotationFile_;
-    int currentRotation_ = 0;
+    int currentRotation_ = -1;
+    bool mirrorEnabled_ = false;
 };
 
 /** 诊断用：扫描 /dev/input 并返回报告（供 App JNI 调用） */
