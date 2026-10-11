@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cerrno>
 #include <cstring>
+#include <fstream>
 
 #include "config.h"
 #include "log.h"
@@ -153,16 +154,52 @@ bool Recognizer::Classify() {
     }
 
     const int64_t durationMs = gestureEndMs_ - gestureStartMs_;
-    const int32_t avgDx = (int32_t)(sumDx_ / completedFingers_);
-    const int32_t avgDy = (int32_t)(sumDy_ / completedFingers_);
-    const int32_t absDx = Abs32(avgDx);
-    const int32_t absDy = Abs32(avgDy);
+    const int32_t rawDx = (int32_t)(sumDx_ / completedFingers_);
+    const int32_t rawDy = (int32_t)(sumDy_ / completedFingers_);
 
-    int32_t swipeMinX = rangeX_ / 12;  // 约 8.3% 屏宽
+    // 触摸面板原始坐标固定在「设备自然方向」；横屏时按当前显示旋转把位移变换到屏幕坐标系。
+    // 设备自然方向为竖屏时的对应关系：
+    //   ROTATION_0  : ( dx,  dy)
+    //   ROTATION_90 : ( dy, -dx)   （设备逆时针旋转 90°）
+    //   ROTATION_180: (-dx, -dy)
+    //   ROTATION_270: (-dy,  dx)   （设备顺时针旋转 90°）
+    int rot = rotation_ & 3;
+    if (rangeX_ > rangeY_) {
+        // 极少数设备的面板自然方向是横屏，需要额外偏移一档
+        rot = (rot + 1) & 3;
+    }
+    int32_t screenDx = rawDx;
+    int32_t screenDy = rawDy;
+    switch (rot) {
+        case 1:
+            screenDx = rawDy;
+            screenDy = -rawDx;
+            break;
+        case 2:
+            screenDx = -rawDx;
+            screenDy = -rawDy;
+            break;
+        case 3:
+            screenDx = -rawDy;
+            screenDy = rawDx;
+            break;
+        default:
+            break;
+    }
+
+    // 阈值按屏幕坐标的尺寸计算（旋转 90/270 时两轴互换）
+    const bool axisSwapped = (rot == 1 || rot == 3);
+    const int32_t screenRangeX = axisSwapped ? rangeY_ : rangeX_;
+    const int32_t screenRangeY = axisSwapped ? rangeX_ : rangeY_;
+
+    const int32_t absDx = Abs32(screenDx);
+    const int32_t absDy = Abs32(screenDy);
+
+    int32_t swipeMinX = screenRangeX / 12;  // 约 8.3% 屏宽
     if (swipeMinX < 80) {
         swipeMinX = 80;
     }
-    int32_t swipeMinY = rangeY_ / 12;
+    int32_t swipeMinY = screenRangeY / 12;
     if (swipeMinY < 80) {
         swipeMinY = 80;
     }
@@ -171,9 +208,9 @@ bool Recognizer::Classify() {
     if (durationMs <= kTapMaxDurationMs && globalMaxMove_ <= kTapSlopPx) {
         type = GestureType::kTap;
     } else if (absDy >= swipeMinY && absDy > absDx) {
-        type = avgDy < 0 ? GestureType::kSwipeUp : GestureType::kSwipeDown;
+        type = screenDy < 0 ? GestureType::kSwipeUp : GestureType::kSwipeDown;
     } else if (absDx >= swipeMinX && absDx >= absDy) {
-        type = avgDx < 0 ? GestureType::kSwipeLeft : GestureType::kSwipeRight;
+        type = screenDx < 0 ? GestureType::kSwipeLeft : GestureType::kSwipeRight;
     } else {
         return false;
     }
@@ -182,8 +219,8 @@ bool Recognizer::Classify() {
     pendingGesture_.fingers = maxFingers_;
     pendingGesture_.type = type;
     pendingGesture_.durationMs = durationMs;
-    pendingGesture_.deltaX = avgDx;
-    pendingGesture_.deltaY = avgDy;
+    pendingGesture_.deltaX = screenDx;
+    pendingGesture_.deltaY = screenDy;
     return true;
 }
 
@@ -442,6 +479,28 @@ void InputReader::LogFrameCoordinates(Device& device) {
     FG_LOGI("[%s] %s", device.name.c_str(), device.recognizer.DescribeTouches().c_str());
 }
 
+/**
+ * 读取 App 上报的屏幕旋转值（0/1/2/3），变化时同步给所有设备的识别器。
+ */
+void InputReader::PollRotation() {
+    if (rotationFile_.empty()) {
+        return;
+    }
+    std::ifstream in(rotationFile_);
+    int value = -1;
+    if (!(in >> value)) {
+        return;
+    }
+    if (value < 0 || value > 3 || value == currentRotation_) {
+        return;
+    }
+    currentRotation_ = value;
+    FG_LOGI("显示旋转更新: %d（手势方向按屏幕坐标系判定）", value);
+    for (auto& device : devices_) {
+        device.recognizer.SetRotation(value);
+    }
+}
+
 void InputReader::Loop() {
     int epollFd = epoll_create1(EPOLL_CLOEXEC);
     if (epollFd < 0) {
@@ -452,12 +511,16 @@ void InputReader::Loop() {
 
     while (true) {
         Config::Get().ReloadIfChanged();
+        PollRotation();
 
         int64_t now = NowMs();
         if (needsRescan_) {
             needsRescan_ = false;
             lastScanMs_ = now;
             ScanDevices();
+            for (auto& device : devices_) {
+                device.recognizer.SetRotation(currentRotation_);
+            }
             for (size_t i = 0; i < devices_.size(); ++i) {
                 Device& device = devices_[i];
                 if (device.fd < 0) {

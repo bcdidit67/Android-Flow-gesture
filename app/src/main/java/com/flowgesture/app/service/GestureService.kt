@@ -8,13 +8,18 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.hardware.display.DisplayManager
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
+import android.view.Display
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import com.flowgesture.app.MainActivity
 import com.flowgesture.app.R
 import com.flowgesture.app.core.DaemonController
+import com.flowgesture.app.core.RotationReporter
 import com.flowgesture.app.core.ServiceBridge
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,9 +33,10 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * 常驻前台服务：保持 Root 守护进程存活。
+ * 常驻前台服务：保持 Root 守护进程存活，并向其上报屏幕旋转状态。
  *
  * - 服务启动时拉起守护进程；
+ * - 监听屏幕旋转变化并写入状态文件（守护进程据此在横屏时正确判定手势方向）；
  * - 每隔一段时间检查一次守护进程状态，意外退出时自动重启；
  * - 服务被停止时同步停掉守护进程。
  */
@@ -39,12 +45,26 @@ class GestureService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var monitorJob: Job? = null
 
+    /** 屏幕旋转监听：变化时写入 display_rotation.txt（0/1/2/3） */
+    private val displayListener = object : DisplayManager.DisplayListener {
+        override fun onDisplayAdded(displayId: Int) = Unit
+
+        override fun onDisplayRemoved(displayId: Int) = Unit
+
+        override fun onDisplayChanged(displayId: Int) {
+            if (displayId == Display.DEFAULT_DISPLAY) {
+                RotationReporter.writeCurrent(applicationContext)
+            }
+        }
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
         ServiceBridge.serviceRunning.value = true
         createNotificationChannel()
+        registerDisplayListener()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -66,6 +86,16 @@ class GestureService : Service() {
             }
         }
         return START_STICKY
+    }
+
+    private fun registerDisplayListener() {
+        try {
+            val manager = getSystemService(DisplayManager::class.java) ?: return
+            manager.registerDisplayListener(displayListener, Handler(Looper.getMainLooper()))
+            RotationReporter.writeCurrent(applicationContext)
+        } catch (_: Throwable) {
+            // 旋转监听失败不影响手势主流程
+        }
     }
 
     private fun startInForeground() {
@@ -125,6 +155,11 @@ class GestureService : Service() {
     }
 
     override fun onDestroy() {
+        try {
+            getSystemService(DisplayManager::class.java)?.unregisterDisplayListener(displayListener)
+        } catch (_: Throwable) {
+            // 忽略
+        }
         ServiceBridge.serviceRunning.value = false
         ServiceBridge.daemonRunning.value = false
         monitorJob?.cancel()

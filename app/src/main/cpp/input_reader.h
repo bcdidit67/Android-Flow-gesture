@@ -41,6 +41,12 @@ public:
     void Reset();
     void SetRanges(int32_t rangeX, int32_t rangeY);
 
+    /**
+     * 设置当前显示旋转（0/1/2/3，对应 Surface.ROTATION_0/90/180/270）。
+     * 触摸面板原始坐标固定在设备自然方向，横屏时需要按该值变换手势方向。
+     */
+    void SetRotation(int rotation) { rotation_ = rotation; }
+
     void OnSlotDown(int slot, int32_t x, int32_t y, int64_t timeMs);
     void OnSlotMove(int slot, int32_t x, int32_t y);
     void OnSlotUp(int slot, int64_t timeMs);
@@ -70,6 +76,7 @@ private:
 
     int32_t rangeX_ = 1080;
     int32_t rangeY_ = 2340;
+    int rotation_ = 0;
 
     bool pending_ = false;
     Gesture pendingGesture_;
@@ -89,6 +96,9 @@ public:
     using GestureCallback = std::function<void(const Gesture&)>;
 
     void SetGestureCallback(GestureCallback callback) { callback_ = std::move(callback); }
+
+    /** 屏幕旋转状态文件（由 App 写入，内容为 0/1/2/3） */
+    void SetRotationFile(const std::string& path) { rotationFile_ = path; }
 
     /** 主循环（阻塞，直到进程被杀死） */
     void Loop();
@@ -114,11 +124,15 @@ private:
     void ProcessFrame(Device& device);
     void LogFrameCoordinates(Device& device);
 
+    void PollRotation();
+
     std::vector<Device> devices_;
     GestureCallback callback_;
     bool needsRescan_ = true;
     bool emptyScanLogged_ = false;
     int64_t lastScanMs_ = 0;
+    std::string rotationFile_;
+    int currentRotation_ = 0;
 };
 
 /** 诊断用：扫描 /dev/input 并返回报告（供 App JNI 调用） */

@@ -31,19 +31,21 @@ object DaemonController {
                 return@withContext Result.failure(IllegalStateException("未获得 Root 权限"))
             }
 
-            // 先确保配置文件存在且为最新
+            // 先确保配置（手势映射）与屏幕旋转状态为最新
             SettingsRepository.get(context).writeConfigFile()
+            RotationReporter.writeCurrent(context)
 
             val libDir = context.applicationInfo.nativeLibraryDir
             val configPath = File(context.filesDir, SettingsRepository.CONFIG_FILE_NAME).absolutePath
             val logPath = File(context.filesDir, DAEMON_LOG_FILE).absolutePath
+            val rotationPath = File(context.filesDir, RotationReporter.ROTATION_FILE).absolutePath
 
             val commands = arrayOf(
                 "mkdir -p $TMP_DIR",
                 "cp -f \"$libDir/lib$DAEMON_NAME.so\" \"$TMP_DIR/$DAEMON_NAME\"",
                 "chmod 755 \"$TMP_DIR/$DAEMON_NAME\"",
                 "pkill -f \"$TMP_DIR/$DAEMON_NAME\" >/dev/null 2>&1 || true",
-                "\"$TMP_DIR/$DAEMON_NAME\" --config=\"$configPath\" --log=\"$logPath\" </dev/null >/dev/null 2>&1 &",
+                "\"$TMP_DIR/$DAEMON_NAME\" --config=\"$configPath\" --log=\"$logPath\" --rotation=\"$rotationPath\" </dev/null >/dev/null 2>&1 &",
             )
             shell.newJob().add(*commands).exec()
 

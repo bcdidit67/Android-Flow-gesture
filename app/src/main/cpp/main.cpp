@@ -57,16 +57,20 @@ void Daemonize() {
 int main(int argc, char** argv) {
     std::string configPath;
     std::string logPath;
+    std::string rotationPath;
     bool foreground = false;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         const std::string configPrefix = "--config=";
         const std::string logPrefix = "--log=";
+        const std::string rotationPrefix = "--rotation=";
         if (arg.rfind(configPrefix, 0) == 0) {
             configPath = arg.substr(configPrefix.size());
         } else if (arg.rfind(logPrefix, 0) == 0) {
             logPath = arg.substr(logPrefix.size());
+        } else if (arg.rfind(rotationPrefix, 0) == 0) {
+            rotationPath = arg.substr(rotationPrefix.size());
         } else if (arg == "--foreground") {
             foreground = true;
         }
@@ -90,6 +94,7 @@ int main(int argc, char** argv) {
     Config::Get().Load(configPath);
 
     InputReader reader;
+    reader.SetRotationFile(rotationPath);
     reader.SetGestureCallback([](const Gesture& gesture) {
         Config::Get().HandleGesture(gesture);
     });
