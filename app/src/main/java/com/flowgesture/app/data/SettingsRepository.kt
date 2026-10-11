@@ -3,6 +3,7 @@ package com.flowgesture.app.data
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.flowgesture.app.core.ActionType
@@ -96,6 +97,20 @@ class SettingsRepository private constructor(private val context: Context) {
         }
     }
 
+    /**
+     * 手动旋转档位覆盖：-1 = 自动（跟随系统旋转），0..3 = 强制使用该档位。
+     * 极少数机型的旋转约定不同，可用它在现场逐个尝试直至方向正确。
+     */
+    val rotationOverrideFlow: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[ROTATION_OVERRIDE_KEY] ?: -1
+    }
+
+    suspend fun setRotationOverride(value: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[ROTATION_OVERRIDE_KEY] = value
+        }
+    }
+
     /** 将当前配置写入文件，供 Root 守护进程读取（守护进程监视文件变更并自动重载） */
     suspend fun writeConfigFile() {
         val prefs = context.dataStore.data.first()
@@ -137,6 +152,7 @@ class SettingsRepository private constructor(private val context: Context) {
         private val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
         private val SERVICE_ENABLED_KEY = booleanPreferencesKey("service_enabled")
         private val LANDSCAPE_MIRROR_KEY = booleanPreferencesKey("landscape_mirror")
+        private val ROTATION_OVERRIDE_KEY = intPreferencesKey("rotation_override")
 
         private fun keyOf(fingers: Int, direction: GestureDirection) = "g${fingers}_${direction.id}"
         private fun actionKey(key: String) = stringPreferencesKey("${key}_action")

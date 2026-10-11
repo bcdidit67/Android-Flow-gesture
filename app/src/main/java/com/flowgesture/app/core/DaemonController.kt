@@ -4,6 +4,7 @@ import android.content.Context
 import com.flowgesture.app.data.SettingsRepository
 import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -32,8 +33,13 @@ object DaemonController {
             }
 
             // 先确保配置（手势映射）与屏幕旋转状态为最新
-            SettingsRepository.get(context).writeConfigFile()
-            RotationReporter.writeCurrent(context)
+            val repository = SettingsRepository.get(context)
+            repository.writeConfigFile()
+            RotationReporter.writeCurrent(
+                context,
+                repository.landscapeMirrorFlow.first(),
+                repository.rotationOverrideFlow.first(),
+            )
 
             val libDir = context.applicationInfo.nativeLibraryDir
             val configPath = File(context.filesDir, SettingsRepository.CONFIG_FILE_NAME).absolutePath

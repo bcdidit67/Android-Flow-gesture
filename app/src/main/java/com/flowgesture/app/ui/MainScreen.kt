@@ -70,6 +70,7 @@ fun MainScreen() {
     val settings by repository.settingsFlow.collectAsState(initial = emptyMap())
     val dynamicColor by repository.dynamicColorFlow.collectAsState(initial = true)
     val landscapeMirror by repository.landscapeMirrorFlow.collectAsState(initial = false)
+    val rotationOverride by repository.rotationOverrideFlow.collectAsState(initial = -1)
     val serviceRunning by ServiceBridge.serviceRunning.collectAsState()
     val daemonRunning by ServiceBridge.daemonRunning.collectAsState()
     val lastError by ServiceBridge.lastError.collectAsState()
@@ -139,6 +140,10 @@ fun MainScreen() {
                 landscapeMirror = landscapeMirror,
                 onToggleLandscapeMirror = { enabled ->
                     scope.launch { repository.setLandscapeMirror(enabled) }
+                },
+                rotationOverride = rotationOverride,
+                onSelectRotationOverride = { value ->
+                    scope.launch { repository.setRotationOverride(value) }
                 },
             )
 
@@ -248,6 +253,8 @@ private fun AppearanceCard(
     onToggle: (Boolean) -> Unit,
     landscapeMirror: Boolean,
     onToggleLandscapeMirror: (Boolean) -> Unit,
+    rotationOverride: Int,
+    onSelectRotationOverride: (Int) -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -296,6 +303,49 @@ private fun AppearanceCard(
                     checked = landscapeMirror,
                     onCheckedChange = onToggleLandscapeMirror,
                 )
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
+
+            var rotationMenuExpanded by remember { mutableStateOf(false) }
+            val rotationLabels = mapOf(
+                -1 to "自动",
+                0 to "强制 0°（竖屏）",
+                1 to "强制 90°",
+                2 to "强制 180°",
+                3 to "强制 270°",
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("横屏旋转（调试）", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        text = "横屏方向仍不对时，逐个尝试直到方向正确",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline,
+                    )
+                }
+                Box {
+                    OutlinedButton(onClick = { rotationMenuExpanded = true }) {
+                        Text(rotationLabels[rotationOverride] ?: "自动")
+                    }
+                    DropdownMenu(
+                        expanded = rotationMenuExpanded,
+                        onDismissRequest = { rotationMenuExpanded = false },
+                    ) {
+                        rotationLabels.forEach { (value, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = {
+                                    rotationMenuExpanded = false
+                                    onSelectRotationOverride(value)
+                                },
+                            )
+                        }
+                    }
+                }
             }
         }
     }

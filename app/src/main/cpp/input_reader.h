@@ -53,6 +53,9 @@ public:
      */
     void SetRotationMirror(bool mirrored) { mirror_ = mirrored; }
 
+    /** 手动旋转档位覆盖（-1 = 自动；0..3 = 强制使用该档位，用于现场纠偏） */
+    void SetRotationOverride(int value) { override_ = value; }
+
     void OnSlotDown(int slot, int32_t x, int32_t y, int64_t timeMs);
     void OnSlotMove(int slot, int32_t x, int32_t y);
     void OnSlotUp(int slot, int64_t timeMs);
@@ -84,6 +87,7 @@ private:
     int32_t rangeY_ = 2340;
     int rotation_ = 0;
     bool mirror_ = false;
+    int override_ = -1;
 
     bool pending_ = false;
     Gesture pendingGesture_;
@@ -141,6 +145,7 @@ private:
     std::string rotationFile_;
     int currentRotation_ = -1;
     bool mirrorEnabled_ = false;
+    int rotationOverride_ = -1;
 };
 
 /** 诊断用：扫描 /dev/input 并返回报告（供 App JNI 调用） */

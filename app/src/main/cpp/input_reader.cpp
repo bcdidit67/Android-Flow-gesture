@@ -163,15 +163,12 @@ bool Recognizer::Classify() {
     //   ROTATION_90 : ( dy, -dx)   （设备逆时针旋转 90°）
     //   ROTATION_180: (-dx, -dy)
     //   ROTATION_270: (-dy,  dx)   （设备顺时针旋转 90°）
-    int rot = rotation_ & 3;
+    int rot = (override_ >= 0 && override_ <= 3) ? override_ : (rotation_ & 3);
     if (mirror_ && (rot == 1 || rot == 3)) {
         // 镜像纠偏：部分 ROM / 面板的旋转方向约定相反（90° 与 270° 互换）
         rot = (rot == 1) ? 3 : 1;
     }
-    if (rangeX_ > rangeY_) {
-        // 极少数设备的面板自然方向是横屏，需要额外偏移一档
-        rot = (rot + 1) & 3;
-    }
+    const int rotationUsed = rot;
     int32_t screenDx = rawDx;
     int32_t screenDy = rawDy;
     switch (rot) {
@@ -225,6 +222,9 @@ bool Recognizer::Classify() {
     pendingGesture_.durationMs = durationMs;
     pendingGesture_.deltaX = screenDx;
     pendingGesture_.deltaY = screenDy;
+    pendingGesture_.rotationUsed = rotationUsed;
+    pendingGesture_.rawDeltaX = rawDx;
+    pendingGesture_.rawDeltaY = rawDy;
     return true;
 }
 
@@ -493,10 +493,12 @@ void InputReader::PollRotation() {
     std::ifstream in(rotationFile_);
     int value = -1;
     int mirror = 0;
+    int overrideValue = -1;
     if (!(in >> value)) {
         return;
     }
-    in >> mirror;  // 可选：第二个值表示是否做横屏镜像
+    in >> mirror;          // 可选：第二个值 = 是否横屏镜像
+    in >> overrideValue;   // 可选：第三个值 = 手动旋转档位（-1 自动）
     if (value < 0 || value > 3) {
         return;
     }
@@ -515,6 +517,22 @@ void InputReader::PollRotation() {
         FG_LOGI("横屏方向镜像: %s", mirrorFlag ? "开启" : "关闭");
         for (auto& device : devices_) {
             device.recognizer.SetRotationMirror(mirrorFlag);
+        }
+    }
+
+    if (overrideValue >= 0 && overrideValue <= 3) {
+        if (overrideValue != rotationOverride_) {
+            rotationOverride_ = overrideValue;
+            FG_LOGI("手动旋转档位: 强制 %d", overrideValue);
+            for (auto& device : devices_) {
+                device.recognizer.SetRotationOverride(overrideValue);
+            }
+        }
+    } else if (rotationOverride_ != -1) {
+        rotationOverride_ = -1;
+        FG_LOGI("手动旋转档位: 自动");
+        for (auto& device : devices_) {
+            device.recognizer.SetRotationOverride(-1);
         }
     }
 }
@@ -539,6 +557,7 @@ void InputReader::Loop() {
             for (auto& device : devices_) {
                 device.recognizer.SetRotation(currentRotation_ < 0 ? 0 : currentRotation_);
                 device.recognizer.SetRotationMirror(mirrorEnabled_);
+                device.recognizer.SetRotationOverride(rotationOverride_);
             }
             for (size_t i = 0; i < devices_.size(); ++i) {
                 Device& device = devices_[i];

@@ -23,6 +23,10 @@ struct Gesture {
     int64_t durationMs = 0;
     int32_t deltaX = 0;
     int32_t deltaY = 0;
+    // 诊断信息：实际使用的旋转档位与原始（面板坐标系）位移
+    int rotationUsed = 0;
+    int32_t rawDeltaX = 0;
+    int32_t rawDeltaY = 0;
 };
 
 /** 用于日志展示，如 "SWIPE_UP" */

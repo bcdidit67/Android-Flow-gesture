@@ -30,16 +30,17 @@ object RotationReporter {
         }
     }
 
-    fun writeRotation(context: Context, rotation: Int, mirror: Boolean) {
+    fun writeRotation(context: Context, rotation: Int, mirror: Boolean, override: Int) {
         try {
-            // 文件内容： "<rotation> <mirror>"，例如 "1 0"
-            File(context.filesDir, ROTATION_FILE).writeText("$rotation ${if (mirror) 1 else 0}")
+            // 文件内容： "<rotation> <mirror> <override>"，例如 "1 0 -1"
+            File(context.filesDir, ROTATION_FILE)
+                .writeText("$rotation ${if (mirror) 1 else 0} $override")
         } catch (_: Throwable) {
             // 写入失败不影响主流程
         }
     }
 
-    fun writeCurrent(context: Context, mirror: Boolean = false) {
-        writeRotation(context, currentRotation(context), mirror)
+    fun writeCurrent(context: Context, mirror: Boolean = false, override: Int = -1) {
+        writeRotation(context, currentRotation(context), mirror, override)
     }
 }

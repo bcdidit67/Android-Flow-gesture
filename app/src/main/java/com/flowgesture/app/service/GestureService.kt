@@ -53,6 +53,10 @@ class GestureService : Service() {
     @Volatile
     private var lastMirror: Boolean = false
 
+    /** 最近一次读取到的「手动旋转档位」（-1 = 自动） */
+    @Volatile
+    private var lastOverride: Int = -1
+
     /** 屏幕旋转监听：变化时立即写入旋转状态文件 */
     private val displayListener = object : DisplayManager.DisplayListener {
         override fun onDisplayAdded(displayId: Int) = Unit
@@ -61,7 +65,7 @@ class GestureService : Service() {
 
         override fun onDisplayChanged(displayId: Int) {
             if (displayId == Display.DEFAULT_DISPLAY) {
-                RotationReporter.writeCurrent(applicationContext, lastMirror)
+                RotationReporter.writeCurrent(applicationContext, lastMirror, lastOverride)
             }
         }
     }
@@ -101,7 +105,7 @@ class GestureService : Service() {
         try {
             val manager = getSystemService(DisplayManager::class.java) ?: return
             manager.registerDisplayListener(displayListener, Handler(Looper.getMainLooper()))
-            RotationReporter.writeCurrent(applicationContext, lastMirror)
+            RotationReporter.writeCurrent(applicationContext, lastMirror, lastOverride)
         } catch (_: Throwable) {
             // 旋转监听失败不影响手势主流程（仍有 2 秒轮询兜底）
         }
@@ -117,7 +121,8 @@ class GestureService : Service() {
             while (isActive) {
                 try {
                     lastMirror = repository.landscapeMirrorFlow.first()
-                    RotationReporter.writeCurrent(applicationContext, lastMirror)
+                    lastOverride = repository.rotationOverrideFlow.first()
+                    RotationReporter.writeCurrent(applicationContext, lastMirror, lastOverride)
                 } catch (_: Throwable) {
                     // 忽略单次失败
                 }

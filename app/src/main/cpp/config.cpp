@@ -83,9 +83,10 @@ std::string Config::Lookup(const Gesture& gesture) const {
 
 void Config::HandleGesture(const Gesture& gesture) {
     std::string action = Lookup(gesture);
-    FG_LOGI("手势识别: %d 指 %s (dur=%lldms, dx=%d, dy=%d, dev=%s) -> 动作 '%s'",
+    FG_LOGI("手势识别: %d 指 %s (dur=%lldms, dx=%d, dy=%d, rot=%d, raw=(%d,%d), dev=%s) -> 动作 '%s'",
             gesture.fingers, GestureTypeName(gesture.type),
             (long long)gesture.durationMs, gesture.deltaX, gesture.deltaY,
+            gesture.rotationUsed, gesture.rawDeltaX, gesture.rawDeltaY,
             gesture.deviceName.c_str(), action.c_str());
     ExecuteAction(action);
 }
