@@ -16,3 +16,7 @@ local.properties
 !gradle/wrapper/gradle-wrapper.jar
 /.backup
 /.kotlin
+
+# 构建/调试日志（不应入库）
+*.log
+build-v*.log
